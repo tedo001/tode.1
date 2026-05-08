@@ -64,19 +64,21 @@ class ImageLoader:
             log.info(f"Single image loaded: {self.source_path}")
 
         elif os.path.isdir(self.source_path):
-            all_files = sorted(os.listdir(self.source_path))
-            self.image_paths = [
-                os.path.join(self.source_path, f)
-                for f in all_files
-                if os.path.splitext(f)[1].lower() in SUPPORTED_EXTS
-            ]
+            found: List[str] = []
+            for root, dirs, files in os.walk(self.source_path):
+                dirs.sort()
+                for fname in sorted(files):
+                    if os.path.splitext(fname)[1].lower() in SUPPORTED_EXTS:
+                        found.append(os.path.join(root, fname))
+            self.image_paths = found
             if not self.image_paths:
                 raise FileNotFoundError(
-                    f"No supported images found in: {self.source_path}"
+                    f"No supported images found in folder or subfolders: "
+                    f"{self.source_path}"
                 )
             log.info(
                 f"Image folder loaded — {len(self.image_paths)} images "
-                f"from: {self.source_path}"
+                f"(recursive) from: {self.source_path}"
             )
         else:
             raise FileNotFoundError(f"Path not found: {self.source_path}")

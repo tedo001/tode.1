@@ -23,7 +23,7 @@ class SourceDialog(tk.Toplevel):
     or None if cancelled.
     """
 
-    def __init__(self, master):
+    def __init__(self, master, initial_tab: str = "local"):
         super().__init__(master)
         self.title("Open Annotation Source")
         self.resizable(False, False)
@@ -38,6 +38,8 @@ class SourceDialog(tk.Toplevel):
         self._selected_type = tk.StringVar(value="")
 
         self._build()
+        if initial_tab == "youtube":
+            self._nb.select(1)
         self.wait_window()
 
     # ─────────────────────────────────────────────────────────────────────────
