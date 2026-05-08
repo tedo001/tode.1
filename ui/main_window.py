@@ -281,7 +281,7 @@ class MainWindow(tk.Frame):
         """Open the source dialog directly on the YouTube tab."""
         if self._busy:
             return
-        dlg = SourceDialog(self.master)
+        dlg = SourceDialog(self.master, initial_tab="youtube")
         if dlg.result:
             self._load_from_result(dlg.result)
 

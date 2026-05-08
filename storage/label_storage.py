@@ -14,17 +14,26 @@ class LabelStorage:
     -----------------
     "yolo"  — one .txt file per frame (class cx cy w h)
     "json"  — one .json file per frame
+
+    Both formats also maintain a sidecar ``classes.json`` mapping
+    class_id → class_name so labels reload with proper names.
     """
+
+    CLASSES_FILE = "classes.json"
 
     def __init__(self, video_name: str, fmt: str = LABEL_FORMAT):
         self.video_name = video_name
         self.fmt        = fmt
         self.base_dir   = os.path.join(LABELS_DIR, video_name)
         os.makedirs(self.base_dir, exist_ok=True)
+        self._class_map: dict = self._load_class_map()
 
     # ── save ──────────────────────────────────────────────────────────────────
     def save(self, annotation: FrameAnnotation) -> str:
         """Write annotation to disk. Returns path of written file."""
+        for box in annotation.boxes:
+            self._class_map[int(box.class_id)] = box.class_name
+        self._write_class_map()
         if self.fmt == "json":
             return self._save_json(annotation)
         return self._save_yolo(annotation)
@@ -77,10 +86,11 @@ class LabelStorage:
             for line in f:
                 parts = line.strip().split()
                 if len(parts) == 5:
+                    cid = int(parts[0])
                     boxes.append(
                         BoundingBox(
-                            class_id   = int(parts[0]),
-                            class_name = str(parts[0]),
+                            class_id   = cid,
+                            class_name = self._class_map.get(cid, str(cid)),
                             x_center   = float(parts[1]),
                             y_center   = float(parts[2]),
                             width      = float(parts[3]),
@@ -107,6 +117,30 @@ class LabelStorage:
             )
             for b in data.get("boxes", [])
         ]
+
+    # ── class map sidecar ─────────────────────────────────────────────────────
+    def _classes_path(self) -> str:
+        return os.path.join(self.base_dir, self.CLASSES_FILE)
+
+    def _load_class_map(self) -> dict:
+        path = self._classes_path()
+        if not os.path.exists(path):
+            return {}
+        try:
+            with open(path) as f:
+                raw = json.load(f)
+            return {int(k): v for k, v in raw.items()}
+        except (json.JSONDecodeError, ValueError, OSError):
+            return {}
+
+    def _write_class_map(self):
+        if not self._class_map:
+            return
+        with open(self._classes_path(), "w") as f:
+            json.dump(
+                {str(k): v for k, v in self._class_map.items()},
+                f, indent=2, sort_keys=True,
+            )
 
     # ── helpers ───────────────────────────────────────────────────────────────
     def _label_path(self, frame_index: int, ext: str = ".txt") -> str:
