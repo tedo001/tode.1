@@ -74,6 +74,27 @@ python main.py
 
 **Supported video formats:** MP4, AVI, MOV, MKV, WEBM, FLV, WMV
 
+### Instant video open
+
+Long videos open **instantly** — the frame index is built in memory before any decoding happens, so you can start annotating right away. Frame PNGs are extracted in a background thread; the status bar shows progress (`Extracting frames in background… 240/3000`). Any frame you navigate to before the worker reaches it is decoded on-demand and cached.
+
+---
+
+## Keyboard shortcuts (labelImg-style)
+
+| Key | Action |
+|---|---|
+| `A` / `←` | Previous frame |
+| `D` / `→` | Next frame |
+| `Home` / `End` | Jump to first / last frame |
+| `W` | Switch to **Draw Box** mode |
+| `V` / `Esc` | Switch back to **View** mode |
+| `Y` | Run YOLO on the current frame |
+| `Ctrl+S` | Save annotations |
+| `Ctrl+E` | Export dataset |
+| `Ctrl+O` | Open source dialog |
+| `Delete` | Clear all boxes on the current frame |
+
 ---
 
 ## Choosing a YOLO model

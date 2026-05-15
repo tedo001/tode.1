@@ -89,6 +89,7 @@ class MainWindow(tk.Frame):
 
         self._build_status()
         self._build_progress()
+        self._bind_shortcuts()
 
     def _build_toolbar(self):
         bar = tk.Frame(self, bg=BG_PANEL, height=44)
@@ -150,6 +151,52 @@ class MainWindow(tk.Frame):
             style="App.Horizontal.TProgressbar",
         )
         self._progress_visible = False
+
+    # ── keyboard shortcuts (labelImg-style) ───────────────────────────────────
+    def _bind_shortcuts(self):
+        """
+        labelImg-style bindings. Bound at the root so they fire regardless
+        of which widget has focus.
+        """
+        root = self.master
+        mappings = {
+            # Navigation
+            "<Left>":         lambda _e: self._nav(-1),
+            "a":              lambda _e: self._nav(-1),
+            "A":              lambda _e: self._nav(-1),
+            "<Right>":        lambda _e: self._nav(+1),
+            "d":              lambda _e: self._nav(+1),
+            "D":              lambda _e: self._nav(+1),
+            "<Home>":         lambda _e: self._nav("first"),
+            "<End>":          lambda _e: self._nav("last"),
+            # Mode switching
+            "w":              lambda _e: self.player.set_draw_mode(),
+            "W":              lambda _e: self.player.set_draw_mode(),
+            "v":              lambda _e: self.player.set_view_mode(),
+            "V":              lambda _e: self.player.set_view_mode(),
+            "<Escape>":       lambda _e: self.player.set_view_mode(),
+            # Actions
+            "<Control-s>":    lambda _e: self._save(),
+            "<Control-S>":    lambda _e: self._save(),
+            "<Control-e>":    lambda _e: self._export_dataset(),
+            "<Control-E>":    lambda _e: self._export_dataset(),
+            "<Control-o>":    lambda _e: self._open_source(),
+            "<Control-O>":    lambda _e: self._open_source(),
+            "<Delete>":       lambda _e: self._clear_frame(),
+            # YOLO
+            "y":              lambda _e: self._run_yolo(),
+            "Y":              lambda _e: self._run_yolo(),
+        }
+        for key, fn in mappings.items():
+            root.bind(key, fn)
+        log.debug("Keyboard shortcuts bound (labelImg-style)")
+
+    def _nav(self, where):
+        """Move slider — accepts -1, +1, 'first', 'last'."""
+        if where == "first": self.player._go_first()
+        elif where == "last": self.player._go_last()
+        elif where == -1:    self.player._prev()
+        elif where == +1:    self.player._next()
 
     # ── progress ──────────────────────────────────────────────────────────────
     def _show_progress(self):
@@ -307,6 +354,13 @@ class MainWindow(tk.Frame):
     def _load_video(self, path: str):
         self._set_status(f"Opening video: {os.path.basename(path)}…")
 
+        def _on_bg_progress(done, total):
+            pct = (100 * done) // max(1, total)
+            self.after(0, lambda d=done, t=total, p=pct: self._set_status(
+                f"Extracting frames in background… {d}/{t} ({p}%)"
+                if d < t else f"All {t} frames extracted."
+            ))
+
         def _work():
             loader    = VideoLoader(path)
             loader.open()
@@ -319,8 +373,7 @@ class MainWindow(tk.Frame):
                 FrameStorage(vname),
                 LabelStorage(vname),
             )
-            self.after(0, lambda: self._set_status("Extracting frames…"))
-            mgr.load_video()
+            mgr.load_video(on_progress=_on_bg_progress)
             mgr.load_existing_labels()
             return mgr
 
@@ -331,9 +384,10 @@ class MainWindow(tk.Frame):
                 frame_path_provider=self._frame_path_for,
             )
             self._set_status(
-                f"Video loaded — '{os.path.basename(path)}'  "
+                f"Video ready — '{os.path.basename(path)}'  "
                 f"| {mgr.loader.total_frames} frames "
-                f"| {mgr.loader.fps:.0f} fps"
+                f"| {mgr.loader.fps:.0f} fps  "
+                f"(frames extract in background — start annotating now)"
             )
 
         def _err(exc):
