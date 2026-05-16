@@ -1,4 +1,4 @@
-# Video Annotation Tool
+# tode
 
 A desktop application for annotating video frames and images with bounding boxes, powered by YOLO auto-annotation.
 
@@ -35,8 +35,8 @@ A desktop application for annotating video frames and images with bounding boxes
 
 ```bash
 # 1. Clone the repo
-git clone https://github.com/tedo001/tode_anotation.v1.1.1.git
-cd tode_anotation.v1.1.1
+git clone https://github.com/tedo001/tode.git
+cd tode
 
 # 2. Create a virtual environment (Python 3.11 or 3.12)
 python3.12 -m venv .venv
@@ -228,7 +228,7 @@ All values normalised to `[0, 1]`. One line per bounding box.
 ## Project structure
 
 ```
-tode_anotation.v1.1.1/
+tode/
 ├── main.py                     # entry point
 ├── requirements.txt
 ├── core/
@@ -294,7 +294,7 @@ See [`THIRD_PARTY_LICENSES.md`](THIRD_PARTY_LICENSES.md) for the full dependency
 ### Build the image
 
 ```bash
-docker build -t tode-anotation .
+docker build -t tode .
 ```
 
 First build takes ~5–15 min and produces a ~2 GB image (Torch + Ultralytics dominate).
@@ -303,7 +303,7 @@ First build takes ~5–15 min and produces a ~2 GB image (Torch + Ultralytics do
 
 ```bash
 # 1. Headless smoke test — confirms everything imports
-docker run --rm tode-anotation python -c "from core import YOLOAnnotator; print('OK')"
+docker run --rm tode python -c "from core import YOLOAnnotator; print('OK')"
 
 # 2. Full GUI on Linux (X11 forwarding)
 xhost +local:docker
@@ -321,7 +321,7 @@ Install [nvidia-container-toolkit](https://docs.nvidia.com/datacenter/cloud-nati
 ```bash
 docker compose up                                  # uses the GPU automatically
 # or for direct docker run:
-docker run --gpus all --rm tode-anotation python main.py
+docker run --gpus all --rm tode python main.py
 ```
 
 ### Platform notes
@@ -341,8 +341,8 @@ On Windows / macOS, just run `python main.py` in a venv for the GUI.
 Lets community members run the app with one command instead of cloning + installing:
 
 ```bash
-docker pull tedo001/tode-anotation:latest
-docker run --rm tedo001/tode-anotation python main.py
+docker pull tedo001/tode:latest
+docker run --rm tedo001/tode python main.py
 ```
 
 ### One-time setup
@@ -361,12 +361,12 @@ docker run --rm tedo001/tode-anotation python main.py
 ```bash
 # Build with both a version tag and 'latest'
 docker build \
-    -t tedo001/tode-anotation:0.1.0 \
-    -t tedo001/tode-anotation:latest .
+    -t tedo001/tode:0.1.0 \
+    -t tedo001/tode:latest .
 
 # Push both tags
-docker push tedo001/tode-anotation:0.1.0
-docker push tedo001/tode-anotation:latest
+docker push tedo001/tode:0.1.0
+docker push tedo001/tode:latest
 ```
 
 Convention:
@@ -375,9 +375,9 @@ Convention:
 
 ### After the first push
 
-On <https://hub.docker.com/r/tedo001/tode-anotation> add:
+On <https://hub.docker.com/r/tedo001/tode> add:
 - **Description** — one-liner about the app
-- **Source repository link** — `https://github.com/tedo001/tode_anotation.v1.1.1`
+- **Source repository link** — `https://github.com/tedo001/tode`
   (satisfies the AGPL source-disclosure obligation automatically)
 
 ### Image storage cost

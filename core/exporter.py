@@ -207,7 +207,7 @@ class DatasetExporter:
 
         coco = {
             "info": {
-                "description": "Exported from Video Annotation Tool",
+                "description": "Exported from tode",
                 "date_created": datetime.now().isoformat(timespec="seconds"),
             },
             "licenses":    [],

@@ -1,5 +1,5 @@
 """
-Video Annotation Tool — Entry Point
+tode — Entry Point
 Run: python main.py
 """
 # ── OpenCV / FFmpeg thread safety ────────────────────────────────────────────
@@ -18,7 +18,7 @@ from ui.main_window import MainWindow
 
 def main():
     root = tk.Tk()
-    root.title("Video Annotation Tool  |  YOLO26x")
+    root.title("tode  |  YOLO26x")
     root.geometry("1280x800")
     root.minsize(1024, 700)
 
