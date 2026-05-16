@@ -1,8 +1,8 @@
 services:
   app:
     build: .
-    image: tode-anotation:latest
-    container_name: tode-anotation
+    image: tode:latest
+    container_name: tode
     # GUI on Linux — requires `xhost +local:docker` on the host first.
     environment:
       - DISPLAY=${DISPLAY:-:0}

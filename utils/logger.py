@@ -76,7 +76,7 @@ class QueueHandler(logging.Handler):
 gui_log_queue: queue.Queue = queue.Queue(maxsize=2000)
 
 # ── Root app logger ───────────────────────────────────────────────────────────
-_root_logger = logging.getLogger("VideoAnnotation")
+_root_logger = logging.getLogger("tode")
 _root_logger.setLevel(logging.DEBUG)
 
 if not _root_logger.handlers:
@@ -106,14 +106,14 @@ if not _root_logger.handlers:
     _root_logger.addHandler(_queue_handler)
 
     _root_logger.info("=" * 70)
-    _root_logger.info("Video Annotation Tool — Session started")
+    _root_logger.info("tode — Session started")
     _root_logger.info(f"Log file: {LOG_FILE}")
     _root_logger.info("=" * 70)
 
 
 def get_logger(name: str) -> logging.Logger:
     """
-    Return a child logger namespaced under 'VideoAnnotation'.
+    Return a child logger namespaced under 'tode'.
 
     Usage
     -----

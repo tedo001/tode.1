@@ -1,13 +1,13 @@
 # syntax=docker/dockerfile:1.6
 #
-# tode_anotation.v1.1.1 — container image
-# Source: https://github.com/tedo001/tode_anotation.v1.1.1
+# tode — container image
+# Source: https://github.com/tedo001/tode
 #
 # Build:
-#   docker build -t tode-anotation .
+#   docker build -t tode .
 #
 # Run (headless / CI — no GUI):
-#   docker run --rm -it tode-anotation python -c "from core import YOLOAnnotator"
+#   docker run --rm -it tode python -c "from core import YOLOAnnotator"
 #
 # Run (Linux desktop with X11 forwarding):
 #   xhost +local:docker
@@ -16,11 +16,11 @@
 #       -v /tmp/.X11-unix:/tmp/.X11-unix \
 #       -v $(pwd)/output:/app/output \
 #       -v $HOME/Documents/labeled_img:/root/Documents/labeled_img \
-#       tode-anotation
+#       tode
 #
 # Run with GPU (NVIDIA, requires nvidia-container-toolkit on host):
 #   docker run --gpus all --rm -it -e DISPLAY=$DISPLAY \
-#       -v /tmp/.X11-unix:/tmp/.X11-unix tode-anotation
+#       -v /tmp/.X11-unix:/tmp/.X11-unix tode
 
 FROM python:3.12-slim AS base
 
