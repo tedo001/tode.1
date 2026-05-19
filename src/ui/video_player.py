@@ -158,14 +158,13 @@ class VideoPlayer(tk.Frame):
 
         # ── centred pause / play button ───────────────────────────────────────
         self._pause_btn = tk.Button(
-            btns, text="⏸",
+            btns, text="▶",
             command=self._toggle_play,
-            bg="#1e1e2e", fg="#aaaacc",
-            activebackground="#333355",
+            bg=ACCENT, fg="white",
+            activebackground="#9d8fff",
             activeforeground="white",
             relief=tk.FLAT,
-            width=4, font=("Consolas", 14), cursor="hand2",
-            bd=1,
+            width=5, font=("Consolas", 13, "bold"), cursor="hand2",
         )
         self._pause_btn.pack(side=tk.LEFT, padx=6)
 
@@ -571,12 +570,12 @@ class VideoPlayer(tk.Frame):
         if not self._indices:
             return
         self._playing = True
-        self._pause_btn.config(text="⏸", fg=ACCENT, bg="#1a1a2e")
+        self._pause_btn.config(text="⏸", bg="#ff6584", fg="white")
         self._tick()
 
     def _stop_play(self) -> None:
         self._playing = False
-        self._pause_btn.config(text="▶", fg="#aaaacc", bg="#1e1e2e")
+        self._pause_btn.config(text="▶", bg=ACCENT, fg="white")
         if self._play_job is not None:
             self.after_cancel(self._play_job)
             self._play_job = None
