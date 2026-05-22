@@ -522,8 +522,7 @@ class MainWindow(tk.Frame):
         from models.annotation_model import PolygonAnnotation
         idx      = self.player.current_frame_index
         # Use class from seg_panel (semantic) if polygon mode active
-        cls_name = self.seg_panel.get_selected_class()
-        color    = self.seg_panel.get_selected_color()
+        cls_name    = self.seg_panel.get_selected_class()
         class_names = self.manager.yolo.class_names
         cls_id   = next(
             (k for k, v in class_names.items()
@@ -913,4 +912,3 @@ class MainWindow(tk.Frame):
         if self.manager:
             self.manager.loader.release()
         self.master.destroy()
-
