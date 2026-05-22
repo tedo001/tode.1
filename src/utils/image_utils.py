@@ -31,7 +31,6 @@ def safe_imread(path: str) -> np.ndarray | None:
     For frames extracted by the app, use a fast cv2 read path first.
     For other image files, keep the PIL fallback to preserve EXIF rotation.
     """
-    ext = os.path.splitext(path)[1].lower()
     if _is_extracted_frame(path):
         frame = cv2.imread(path)
         if frame is not None:
