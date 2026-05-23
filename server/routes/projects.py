@@ -66,7 +66,7 @@ def export(project_id: str, fmt: str = "yolo"):
     """Download a ZIP of the exported dataset."""
     if _svc.get(project_id) is None:
         raise HTTPException(status_code=404, detail="Project not found")
-    if fmt not in ("yolo", "coco", "csv", "json"):
+    if fmt not in ("yolo", "coco", "pascal_voc", "csv", "json"):
         raise HTTPException(status_code=400, detail=f"Unknown format '{fmt}'")
     zip_path = export_project(project_id, fmt)
     return FileResponse(

@@ -13,16 +13,18 @@ import zipfile
 from core.exporters.coco import COCOExporter
 from core.exporters.csv_exporter import CSVExporter
 from core.exporters.json_exporter import JSONExporter
+from core.exporters.pascal_voc import PascalVOCExporter
 from core.exporters.yolo import YOLOExporter
 from server.services.project_service import ProjectService
 
 _svc = ProjectService()
 
 _EXPORTERS = {
-    "yolo": YOLOExporter,
-    "coco": COCOExporter,
-    "csv":  CSVExporter,
-    "json": JSONExporter,
+    "yolo":       YOLOExporter,
+    "coco":       COCOExporter,
+    "pascal_voc": PascalVOCExporter,
+    "csv":        CSVExporter,
+    "json":       JSONExporter,
 }
 
 
