@@ -84,4 +84,4 @@ COPY . .
 
 EXPOSE 8000
 
-CMD ["gunicorn", "-w", "4", "-k", "uvicorn.workers.UvicornWorker", "--bind", "0.0.0.0:8000", "--timeout", "120", "server.app:app"]
+CMD ["gunicorn", "-c", "gunicorn.conf.py", "server.app:app"]
