@@ -6,7 +6,9 @@ import sys
 _ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.join(_ROOT, "src"))
 
-HOST         = os.environ.get("TODE_HOST", "0.0.0.0")
+# Bind to all interfaces by default so the server is reachable inside a
+# container / cloud host. Override with TODE_HOST for a tighter bind.
+HOST         = os.environ.get("TODE_HOST", "0.0.0.0")  # nosec B104 — required for container/cloud deployment
 PORT         = int(os.environ.get("PORT", os.environ.get("TODE_PORT", "8000")))
 RELOAD       = os.environ.get("TODE_RELOAD", "false").lower() == "true"
 CORS_ORIGINS = ["*"]   # tighten in production
