@@ -23,8 +23,7 @@ docker build -f docker/Dockerfile-gpu -t tode:gpu .
 
 ## License notes
 
+- tode is **MIT-licensed**; every dependency is permissive.
 - The detection stack (RT-DETR / `transformers` Apache-2.0, `supervision` MIT,
-  torch BSD) carries **no AGPL dependency**.
-- These headless images do not include PyQt6, so they are free of its GPL-3.0
-  copyleft; the desktop GUI (root `Dockerfile`, and the packaged installer) does
-  include PyQt6. See `THIRD_PARTY_LICENSES.md` for the full breakdown.
+  torch BSD) and the **PySide6** GUI (LGPL-3.0) all allow closed-source and
+  commercial use. See `THIRD_PARTY_LICENSES.md` for the full breakdown.

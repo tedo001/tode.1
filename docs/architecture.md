@@ -1,13 +1,13 @@
 # Architecture
 
-`tode` is a **PyQt6 desktop app** (plus an optional FastAPI web server) on top of
+`tode` is a **PySide6 desktop app** (plus an optional FastAPI web server) on top of
 a fully headless core. The package layout mirrors the runtime layers — the UI
 never reaches into another UI module's internals, and the headless layers never
 import Qt.
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│  ui/        PyQt6 — qt_main_window, qt_canvas, qt_workers        │  ← display layer
+│  ui/        PySide6 — qt_main_window, qt_canvas, qt_workers        │  ← display layer
 ├─────────────────────────────────────────────────────────────────┤
 │  core/      annotation_manager, auto_annotator, exporter,        │
 │             detectors/rtdetr_detector, loaders                   │  ← headless app logic

@@ -1,7 +1,7 @@
 """
 ui/qt_main_window.py
 ─────────────────────
-PyQt6 main window for tode. A thin controller over the headless core:
+PySide6 main window for tode. A thin controller over the headless core:
 
     QMainWindow ── AnnotationCanvas
         │
@@ -15,9 +15,9 @@ from __future__ import annotations
 
 import os
 
-from PyQt6.QtCore import Qt, QTimer
-from PyQt6.QtGui import QAction, QKeySequence
-from PyQt6.QtWidgets import (
+from PySide6.QtCore import Qt, QTimer
+from PySide6.QtGui import QAction, QKeySequence
+from PySide6.QtWidgets import (
     QCheckBox,
     QComboBox,
     QDoubleSpinBox,

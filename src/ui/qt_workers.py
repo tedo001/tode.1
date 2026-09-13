@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import os
 
-from PyQt6.QtCore import QThread, pyqtSignal
+from PySide6.QtCore import QThread, Signal
 
 from core.annotation_manager import AnnotationManager
 from core.auto_annotator import AutoAnnotator
@@ -31,9 +31,9 @@ def _sanitize(name: str) -> str:
 class LoadWorker(QThread):
     """Builds an AnnotationManager for a video / image / folder source."""
 
-    progress = pyqtSignal(int, int)     # done, total
-    done     = pyqtSignal(object)       # AnnotationManager
-    error    = pyqtSignal(str)
+    progress = Signal(int, int)     # done, total
+    done     = Signal(object)       # AnnotationManager
+    error    = Signal(str)
 
     def __init__(self, source_type: str, path: str, step: int = 1):
         super().__init__()
@@ -76,10 +76,10 @@ class DetectWorker(QThread):
     while a model is fetched. Optional ByteTrack tracking for full-video runs.
     """
 
-    progress = pyqtSignal(int, int)
-    done     = pyqtSignal(object)       # frame index (single) or count (all)
-    status   = pyqtSignal(str)
-    error    = pyqtSignal(str)
+    progress = Signal(int, int)
+    done     = Signal(object)       # frame index (single) or count (all)
+    status   = Signal(str)
+    error    = Signal(str)
 
     def __init__(
         self,

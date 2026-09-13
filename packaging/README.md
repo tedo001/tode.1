@@ -1,7 +1,7 @@
 # Packaging tode as an installable desktop app
 
 tode ships as a **WEKA-style installer**: a self-contained bundle (its own Python
-runtime + PyQt6 + torch/transformers/supervision) wrapped in a setup wizard.
+runtime + PySide6 + torch/transformers/supervision) wrapped in a setup wizard.
 RT-DETR model weights are **not** bundled — they download from the HuggingFace
 Hub on first use.
 
