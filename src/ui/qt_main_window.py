@@ -15,7 +15,7 @@ from __future__ import annotations
 
 import os
 
-from PyQt6.QtCore import Qt
+from PyQt6.QtCore import Qt, QTimer
 from PyQt6.QtGui import QAction, QKeySequence
 from PyQt6.QtWidgets import (
     QCheckBox,
@@ -37,6 +37,7 @@ from PyQt6.QtWidgets import (
 )
 
 from core.exporter import DatasetExporter
+from core.time_tracker import AnnotationTimer
 from models.annotation_model import BoundingBox, ImageClassification, PolygonAnnotation
 from ui.qt_canvas import DRAW, POLYGON, VIEW, AnnotationCanvas
 from ui.qt_workers import DetectWorker, LoadWorker
@@ -61,9 +62,17 @@ class TodeMainWindow(QMainWindow):
         self._class_ids: dict[str, int] = {}
         self._busy = False
         self._worker = None
+        self.timer = AnnotationTimer()
 
         self._build_ui()
         self._build_shortcuts()
+
+        # 1 Hz clock: accrue active annotation time and refresh the readout.
+        self._clock_timer = QTimer(self)
+        self._clock_timer.setInterval(1000)
+        self._clock_timer.timeout.connect(self._tick_clock)
+        self._clock_timer.start()
+
         log.info("Qt main window ready")
 
     # ── construction ──────────────────────────────────────────────────────────
@@ -104,6 +113,9 @@ class TodeMainWindow(QMainWindow):
         self._build_toolbar()
 
         self.status = self.statusBar()
+        self.time_label = QLabel("⏱ 0:00")
+        self.time_label.setToolTip("Active annotation time (auto-pauses when idle) · time on current frame")
+        self.status.addPermanentWidget(self.time_label)
         self.progress = QProgressBar()
         self.progress.setMaximumWidth(220)
         self.progress.hide()
@@ -266,9 +278,17 @@ class TodeMainWindow(QMainWindow):
         self._indices = manager.all_frame_indices()
         self.current_index = 0
         self._set_busy(False)
+        # Fresh timer for this project; carry over prior time if it exists.
+        self.timer = AnnotationTimer()
+        self.timer.load(self._timing_path())
+        self.timer.start()
         self.frame_slider.setMaximum(max(0, len(self._indices) - 1))
         self._show_frame(0)
         self._set_status(f"Loaded {len(self._indices)} frame(s).")
+
+    def _timing_path(self) -> str:
+        base = getattr(getattr(self.manager, "l_store", None), "base_dir", ".")
+        return os.path.join(base, "timing.json")
 
     # ── frame display ─────────────────────────────────────────────────────────
     def _show_frame(self, pos: int):
@@ -277,6 +297,7 @@ class TodeMainWindow(QMainWindow):
         pos = max(0, min(pos, len(self._indices) - 1))
         self.current_index = pos
         idx = self._indices[pos]
+        self.timer.set_frame(idx)
         ann = self.manager.get_annotation(idx)
         frame = self.manager._read_frame_reliable(ann, idx) if ann else None
         self.canvas.set_image_bgr(frame)
@@ -331,6 +352,7 @@ class TodeMainWindow(QMainWindow):
         ann = self._current_ann()
         if not ann:
             return
+        self.timer.touch()
         name = self.class_edit.text().strip() or "object"
         box = BoundingBox(self._class_id_for(name), name, cx, cy, w, h, 1.0)
         self.manager.add_box(ann.frame_index, box)
@@ -339,6 +361,7 @@ class TodeMainWindow(QMainWindow):
 
     def _on_box_edited(self, index, cx, cy, w, h):
         # The canvas mutated the BoundingBox object in place; just refresh views.
+        self.timer.touch()
         self._refresh_box_list()
 
     def _on_box_selected(self, index):
@@ -353,6 +376,7 @@ class TodeMainWindow(QMainWindow):
         ann = self._current_ann()
         row = self.box_list.currentRow()
         if ann and 0 <= row < len(ann.boxes):
+            self.timer.touch()
             self.manager.remove_box(ann.frame_index, row)
             self.canvas.set_boxes(ann.boxes, selected=-1)
             self._refresh_box_list()
@@ -368,6 +392,7 @@ class TodeMainWindow(QMainWindow):
         ann = self._current_ann()
         if not ann:
             return
+        self.timer.touch()
         name = self.class_edit.text().strip() or "object"
         poly = PolygonAnnotation(self._class_id_for(name), name, points, 1.0)
         self.manager.add_polygon(ann.frame_index, poly)
@@ -377,6 +402,7 @@ class TodeMainWindow(QMainWindow):
         ann = self._current_ann()
         if not ann:
             return
+        self.timer.touch()
         name = self.class_edit.text().strip() or "object"
         self.manager.set_classification(
             ann.frame_index, ImageClassification(self._class_id_for(name), name, 1.0)
@@ -447,7 +473,12 @@ class TodeMainWindow(QMainWindow):
         if not self.manager:
             return
         self.manager.save_annotations()
-        self._set_status("Annotations saved.")
+        try:
+            self.timer.save(self._timing_path())
+        except OSError as exc:            # noqa: BLE001 - saving time is best-effort
+            log.warning(f"Could not save timing: {exc}")
+        mins = self.timer.active_seconds / 60
+        self._set_status(f"Annotations saved · {mins:.1f} min active annotation time.")
 
     def _export(self):
         if not self.manager:
@@ -500,3 +531,27 @@ class TodeMainWindow(QMainWindow):
 
     def _set_status(self, text: str):
         self.status.showMessage(text)
+
+    # ── time tracking ───────────────────────────────────────────────────────────
+    def _tick_clock(self):
+        """1 Hz: accrue active time and refresh the readout."""
+        self.timer.tick()
+        self._update_time_label()
+
+    def _update_time_label(self):
+        total = AnnotationTimer.format_hms(self.timer.active_seconds)
+        if self.manager and self._indices:
+            idx = self._indices[self.current_index]
+            frame_s = self.timer.frame_seconds(idx)
+            self.time_label.setText(f"⏱ {total} · frame {frame_s:.0f}s")
+        else:
+            self.time_label.setText(f"⏱ {total}")
+
+    def closeEvent(self, event):
+        """Persist timing on window close."""
+        try:
+            if self.manager:
+                self.timer.save(self._timing_path())
+        except OSError:
+            pass
+        super().closeEvent(event)
