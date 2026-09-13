@@ -1,5 +1,5 @@
 """
-tode — Entry Point (PyQt6)
+tode — Entry Point (PySide6)
 Run: python main.py
 """
 import os
@@ -18,7 +18,7 @@ import cv2
 
 cv2.setNumThreads(0)
 
-from PyQt6.QtWidgets import QApplication
+from PySide6.QtWidgets import QApplication
 
 from ui.qt_main_window import TodeMainWindow
 

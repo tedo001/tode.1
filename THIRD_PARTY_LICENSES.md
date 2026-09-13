@@ -7,7 +7,7 @@ the property of its respective owners and licensed under the terms below.
 
 | Package | Version | License | Notes |
 |---|---|---|---|
-| [PyQt6](https://www.riverbankcomputing.com/software/pyqt/) | ≥ 6.6.0 | **GPL-3.0** (or commercial) | Copyleft desktop GUI toolkit — the copyleft driver for this project. A commercial Qt/PyQt licence (or a swap to LGPL PySide6) is required for closed-source distribution. |
+| [PySide6](https://doc.qt.io/qtforpython/) | ≥ 6.6.0 | **LGPL-3.0** | Qt for Python — the official Qt binding. LGPL permits use in closed-source/commercial apps as long as the Qt libraries remain replaceable (dynamically linked, as bundled). |
 | [torch](https://github.com/pytorch/pytorch) | ≥ 2.2.0 | BSD-3-Clause | Permissive. RT-DETR runtime. |
 | [torchvision](https://github.com/pytorch/vision) | ≥ 0.17.0 | BSD-3-Clause | Permissive. |
 | [transformers](https://github.com/huggingface/transformers) | ≥ 4.48.0 | Apache-2.0 | Permissive. Provides RT-DETR / RT-DETRv2. |
@@ -38,14 +38,19 @@ the property of its respective owners and licensed under the terms below.
 - **Annotated images** — the user retains all rights to images and labels they
   create with this tool. Exported datasets are the user's property.
 
-## Why AGPL-3.0 for this project
+## Why MIT for this project
 
-The **detection stack is permissively licensed** — RT-DETR / `transformers`
-(Apache-2.0), `supervision` (MIT), torch (BSD). There is no longer any AGPL
-dependency (the previous Ultralytics YOLO engine was removed).
+Every dependency tode ships is permissively licensed, so tode itself can be
+**MIT** — usable in private, commercial, and closed-source products:
 
-The remaining copyleft dependency is **PyQt6 (GPL-3.0)**. AGPL-3.0 is
-GPL-compatible, so distributing tode under AGPL-3.0 satisfies PyQt6's terms
-while keeping the project fully open source. For a closed-source distribution
-you would instead need a commercial Qt/PyQt licence, or replace PyQt6 with the
-LGPL-licensed **PySide6** (a near drop-in Qt binding).
+- Detection: RT-DETR / `transformers` (Apache-2.0), `supervision` (MIT),
+  torch/torchvision (BSD). No AGPL dependency (the previous Ultralytics YOLO
+  engine was removed).
+- GUI: **PySide6 is LGPL-3.0** — unlike GPL PyQt6, LGPL allows use in
+  closed-source apps provided the Qt libraries stay dynamically linked and
+  replaceable, which the standard PyInstaller/installer layout satisfies (Qt
+  ships as separate DLLs).
+
+**LGPL obligation when redistributing:** keep the bundled Qt/PySide6 libraries
+replaceable (don't statically link them) and retain their license notices. That
+is the only copyleft-style condition; tode's own source is unrestricted MIT.

@@ -1,6 +1,6 @@
 # tode
 
-A fast, open-source annotation tool for video frames and images — bounding boxes, polygon segmentation, and image classification — powered by RT-DETR auto-annotation and a built-in web server for multi-user workflows. Ships as a PyQt6 desktop app with a one-click installer.
+A fast, open-source annotation tool for video frames and images — bounding boxes, polygon segmentation, and image classification — powered by RT-DETR auto-annotation and a built-in web server for multi-user workflows. Ships as a PySide6 desktop app with a one-click installer.
 
 ---
 
@@ -29,7 +29,7 @@ A fast, open-source annotation tool for video frames and images — bounding box
 
 ## Features
 
-**Desktop app (PyQt6)**
+**Desktop app (PySide6)**
 - Auto-annotate with RT-DETR (HuggingFace transformers + supervision) — one frame or all at once
 - Three annotation types: **bounding box**, **polygon segmentation**, **image classification**
 - Click-and-drag box drawing with full resize / move handles
@@ -330,7 +330,7 @@ tode/
 │   │   ├── session_storage.py
 │   │   └── formats/                # YOLO / COCO / CSV / Pascal VOC / JSON
 │   │
-│   └── ui/                         # PyQt6 desktop UI
+│   └── ui/                         # PySide6 desktop UI
 │       ├── qt_main_window.py       # main window, toolbar, panel, event wiring
 │       ├── qt_canvas.py            # annotation canvas (boxes + polygons)
 │       └── qt_workers.py           # QThread load / detect workers
@@ -397,22 +397,31 @@ docker compose up          # GPU used automatically
 
 ## License
 
-Licensed under **GNU AGPL-3.0** — see [`LICENSE`](LICENSE).
+Licensed under the **MIT License** — see [`LICENSE`](LICENSE).
 
-**Why AGPL?** The detection stack is now permissively licensed — RT-DETR /
-`transformers` are Apache-2.0 and `supervision` is MIT (no Ultralytics/AGPL
-dependency). The remaining copyleft driver is the **PyQt6** desktop GUI, which
-is **GPL-3.0**; AGPL-3.0 is compatible with it and keeps tode fully open source.
-For a closed-source desktop distribution you would need a commercial PyQt
-licence (or swap PyQt6 for LGPL PySide6).
+tode is fully permissive: use it privately or commercially, modify it, and ship
+it in closed-source products — just keep the copyright notice. This is possible
+because every runtime dependency is permissively licensed: the **PySide6** GUI
+is **LGPL** (dynamically linked, no copyleft on your code), RT-DETR /
+`transformers` are Apache-2.0, `supervision` is MIT, and torch/OpenCV/numpy are
+BSD/Apache.
 
 | Action | Allowed? |
 |---|---|
 | Use locally / privately | ✅ |
 | Modify source code | ✅ |
-| Share modifications | ✅ — must include AGPL-3.0 source |
-| Run as a public web service | ✅ — must publish modifications under AGPL-3.0 |
-| Distribute a closed-source fork | ❌ — AGPL-3.0 (and PyQt6 GPL) require source |
+| Use in a closed-source or commercial product | ✅ — just keep the MIT notice |
+| Redistribute / fork | ✅ |
 | Train on your own data and keep the weights | ✅ — your data, your weights |
 
+> **LGPL note (PySide6):** MIT covers tode's own code. PySide6 is LGPL, so if you
+> redistribute the bundled Qt libraries, keep them replaceable (the default
+> PyInstaller/installer layout already satisfies this — Qt ships as separate
+> DLLs, not statically linked).
+
 See [`THIRD_PARTY_LICENSES.md`](THIRD_PARTY_LICENSES.md) for the full dependency licence table.
+
+## Contributing
+
+Contributions are welcome! Participation in this project is governed by our
+[Code of Conduct](CODE_OF_CONDUCT.md).

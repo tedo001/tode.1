@@ -41,7 +41,7 @@ datas, binaries, hiddenimports = [], [], []
 for _pkg in (
     "torch", "torchvision", "transformers", "supervision",
     "tokenizers", "safetensors", "huggingface_hub", "regex",
-    "cv2", "PIL", "numpy", "PyQt6",
+    "cv2", "PIL", "numpy", "PySide6",
 ):
     _d, _b, _h = _safe_collect_all(_pkg)
     datas += _d

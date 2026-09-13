@@ -11,7 +11,7 @@ pip install -r requirements-test.txt
 ```
 
 The `requirements-test.txt` variant intentionally omits `torch` / `transformers`
-/ `PyQt6` so it installs in seconds and is fine for headless CI. The detector
+/ `PySide6` so it installs in seconds and is fine for headless CI. The detector
 tests use a stub backend, so no heavy ML deps are needed to run the suite.
 
 ## Tests

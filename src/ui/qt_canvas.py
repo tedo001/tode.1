@@ -1,7 +1,7 @@
 """
 ui/qt_canvas.py
 ────────────────
-PyQt6 annotation canvas. Displays a frame (letterboxed) and supports:
+PySide6 annotation canvas. Displays a frame (letterboxed) and supports:
 
   • view mode    — click a box to select it, drag body to move, drag one of the
                    8 handles to resize
@@ -16,8 +16,8 @@ from __future__ import annotations
 
 import cv2
 import numpy as np
-from PyQt6.QtCore import QPointF, QRectF, Qt, pyqtSignal
-from PyQt6.QtGui import (
+from PySide6.QtCore import QPointF, QRectF, Qt, Signal
+from PySide6.QtGui import (
     QBrush,
     QColor,
     QFont,
@@ -27,7 +27,7 @@ from PyQt6.QtGui import (
     QPixmap,
     QPolygonF,
 )
-from PyQt6.QtWidgets import QWidget
+from PySide6.QtWidgets import QWidget
 
 # Modes
 VIEW, DRAW, POLYGON = "view", "draw", "polygon"
@@ -46,11 +46,11 @@ def _class_color(class_id: int) -> QColor:
 class AnnotationCanvas(QWidget):
     """Interactive annotation surface (bounding boxes + polygons)."""
 
-    boxDrawn      = pyqtSignal(float, float, float, float)  # cx, cy, w, h (norm)
-    boxEdited     = pyqtSignal(int, float, float, float, float)
-    boxSelected   = pyqtSignal(int)                          # -1 = deselect
-    polygonDrawn  = pyqtSignal(object)                       # list[(nx, ny)]
-    openRequested = pyqtSignal()
+    boxDrawn      = Signal(float, float, float, float)  # cx, cy, w, h (norm)
+    boxEdited     = Signal(int, float, float, float, float)
+    boxSelected   = Signal(int)                          # -1 = deselect
+    polygonDrawn  = Signal(object)                       # list[(nx, ny)]
+    openRequested = Signal()
 
     def __init__(self, parent=None):
         super().__init__(parent)

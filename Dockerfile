@@ -34,7 +34,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 # System dependencies:
 #   libgl1, libegl1, libglib2.0-0     — OpenCV + Qt (QtGui/OpenGL) runtime
-#   libxcb*, libxkbcommon0, libdbus-1 — PyQt6 xcb platform plugin on X11
+#   libxcb*, libxkbcommon0, libdbus-1 — PySide6 xcb platform plugin on X11
 RUN apt-get update && apt-get install --no-install-recommends -y \
         libgl1 \
         libegl1 \
