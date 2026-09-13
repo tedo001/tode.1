@@ -36,6 +36,7 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
+from core.audit_log import audit_log_path, get_audit_log
 from core.exporter import DatasetExporter
 from core.time_tracker import AnnotationTimer
 from models.annotation_model import BoundingBox, ImageClassification, PolygonAnnotation
@@ -63,6 +64,8 @@ class TodeMainWindow(QMainWindow):
         self._busy = False
         self._worker = None
         self.timer = AnnotationTimer()
+        self.audit = get_audit_log()
+        self.audit.record("app_start", model=RTDETR_DEFAULT_MODEL)
 
         self._build_ui()
         self._build_shortcuts()
@@ -282,6 +285,14 @@ class TodeMainWindow(QMainWindow):
         self.timer = AnnotationTimer()
         self.timer.load(self._timing_path())
         self.timer.start()
+        # Route audit entries into this project's own audit.jsonl too.
+        base = getattr(getattr(manager, "l_store", None), "base_dir", None)
+        self.audit.set_project_sink(os.path.join(base, "audit.jsonl") if base else None)
+        self.audit.record(
+            "source_loaded",
+            target=getattr(getattr(manager, "l_store", None), "video_name", "?"),
+            frames=len(self._indices),
+        )
         self.frame_slider.setMaximum(max(0, len(self._indices) - 1))
         self._show_frame(0)
         self._set_status(f"Loaded {len(self._indices)} frame(s).")
@@ -356,12 +367,16 @@ class TodeMainWindow(QMainWindow):
         name = self.class_edit.text().strip() or "object"
         box = BoundingBox(self._class_id_for(name), name, cx, cy, w, h, 1.0)
         self.manager.add_box(ann.frame_index, box)
+        self.audit.record("box_added", target=f"frame:{ann.frame_index}", cls=name)
         self.canvas.set_boxes(ann.boxes, selected=len(ann.boxes) - 1)
         self._refresh_box_list()
 
     def _on_box_edited(self, index, cx, cy, w, h):
         # The canvas mutated the BoundingBox object in place; just refresh views.
         self.timer.touch()
+        ann = self._current_ann()
+        if ann:
+            self.audit.record("box_edited", target=f"frame:{ann.frame_index}", index=index)
         self._refresh_box_list()
 
     def _on_box_selected(self, index):
@@ -378,6 +393,7 @@ class TodeMainWindow(QMainWindow):
         if ann and 0 <= row < len(ann.boxes):
             self.timer.touch()
             self.manager.remove_box(ann.frame_index, row)
+            self.audit.record("box_deleted", target=f"frame:{ann.frame_index}", index=row)
             self.canvas.set_boxes(ann.boxes, selected=-1)
             self._refresh_box_list()
 
@@ -385,6 +401,7 @@ class TodeMainWindow(QMainWindow):
         ann = self._current_ann()
         if ann:
             self.manager.clear_frame(ann.frame_index)
+            self.audit.record("frame_cleared", target=f"frame:{ann.frame_index}")
             self.canvas.set_boxes(ann.boxes, selected=-1)
             self._refresh_box_list()
 
@@ -396,6 +413,9 @@ class TodeMainWindow(QMainWindow):
         name = self.class_edit.text().strip() or "object"
         poly = PolygonAnnotation(self._class_id_for(name), name, points, 1.0)
         self.manager.add_polygon(ann.frame_index, poly)
+        self.audit.record(
+            "polygon_added", target=f"frame:{ann.frame_index}", cls=name, points=len(points)
+        )
         self.canvas.set_polygons(ann.polygons)
 
     def _classify_frame(self):
@@ -407,6 +427,7 @@ class TodeMainWindow(QMainWindow):
         self.manager.set_classification(
             ann.frame_index, ImageClassification(self._class_id_for(name), name, 1.0)
         )
+        self.audit.record("frame_classified", target=f"frame:{ann.frame_index}", cls=name)
         self._set_status(f"Frame classified as '{name}'.")
 
     # ── RT-DETR detection ─────────────────────────────────────────────────────
@@ -424,12 +445,16 @@ class TodeMainWindow(QMainWindow):
         self._worker.error.connect(self._on_worker_error)
         self._worker.start()
 
-    def _on_detect_one(self, _idx):
+    def _on_detect_one(self, idx):
         self._set_busy(False)
         self._show_frame(self.current_index)
         ann = self._current_ann()
         n = len(ann.boxes) if ann else 0
         self._seed_classes_from_model()
+        self.audit.record(
+            "detect_frame", target=f"frame:{idx}", boxes=n,
+            model=self.model_combo.currentText(),
+        )
         self._set_status(f"RT-DETR: {n} object(s).")
 
     def _run_detect_all(self):
@@ -451,6 +476,10 @@ class TodeMainWindow(QMainWindow):
         self._set_busy(False)
         self._seed_classes_from_model()
         self._show_frame(self.current_index)
+        self.audit.record(
+            "detect_all", annotated=count, total=self.manager.total_count,
+            model=self.model_combo.currentText(), track=self.track_check.isChecked(),
+        )
         self._set_status(f"RT-DETR complete — {count}/{self.manager.total_count} annotated.")
 
     def _seed_classes_from_model(self):
@@ -477,6 +506,11 @@ class TodeMainWindow(QMainWindow):
             self.timer.save(self._timing_path())
         except OSError as exc:            # noqa: BLE001 - saving time is best-effort
             log.warning(f"Could not save timing: {exc}")
+        self.audit.record(
+            "annotations_saved",
+            annotated=self.manager.annotated_count,
+            active_seconds=round(self.timer.active_seconds, 1),
+        )
         mins = self.timer.active_seconds / 60
         self._set_status(f"Annotations saved · {mins:.1f} min active annotation time.")
 
@@ -497,16 +531,27 @@ class TodeMainWindow(QMainWindow):
                 self.manager.detector.class_names or {v: k for k, v in self._class_ids.items()},
                 out,
             ).export(fmt)
+            self.audit.record(
+                "dataset_exported", target=out, fmt=fmt, images=summary.get("images"),
+            )
             QMessageBox.information(
                 self, "Export complete",
                 f"Exported {summary.get('images', '?')} image(s) as {fmt.upper()} to:\n{out}",
             )
         except Exception as exc:          # noqa: BLE001
+            self.audit.record("export_failed", target=out, fmt=fmt, error=str(exc))
             QMessageBox.critical(self, "Export failed", str(exc))
 
     def _show_logs(self):
-        logs_dir = os.path.join(os.getcwd(), "logs")
-        QMessageBox.information(self, "Logs", f"Logs are written to:\n{logs_dir}")
+        from utils.logger import get_log_file_path
+        msg = (
+            "System log (diagnostics):\n"
+            f"{get_log_file_path()}\n\n"
+            "Audit log (who did what — JSON Lines):\n"
+            f"{audit_log_path()}\n\n"
+            "A per-project audit.jsonl is also written next to the project's labels."
+        )
+        QMessageBox.information(self, "Logs", msg)
 
     # ── helpers ───────────────────────────────────────────────────────────────
     def _on_progress(self, done, total):
@@ -548,10 +593,11 @@ class TodeMainWindow(QMainWindow):
             self.time_label.setText(f"⏱ {total}")
 
     def closeEvent(self, event):
-        """Persist timing on window close."""
+        """Persist timing and record the session end on window close."""
         try:
             if self.manager:
                 self.timer.save(self._timing_path())
         except OSError:
             pass
+        self.audit.record("app_exit", active_seconds=round(self.timer.active_seconds, 1))
         super().closeEvent(event)
