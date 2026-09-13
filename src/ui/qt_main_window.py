@@ -18,6 +18,7 @@ import os
 from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QAction, QKeySequence
 from PyQt6.QtWidgets import (
+    QCheckBox,
     QComboBox,
     QDoubleSpinBox,
     QFileDialog,
@@ -145,6 +146,13 @@ class TodeMainWindow(QMainWindow):
         self.detect_all_btn.clicked.connect(self._run_detect_all)
         v.addWidget(self.detect_btn)
         v.addWidget(self.detect_all_btn)
+
+        self.track_check = QCheckBox("Track across frames (ByteTrack + Kalman)")
+        self.track_check.setToolTip(
+            "Detect All only: link detections across frames with ByteTrack for "
+            "temporally-consistent, smoother annotations."
+        )
+        v.addWidget(self.track_check)
 
         v.addWidget(QLabel("<b>Class for new box</b>"))
         self.class_edit = QLineEdit("object")
@@ -381,7 +389,11 @@ class TodeMainWindow(QMainWindow):
         if not ann or self._busy:
             return
         self._set_busy(True, "Running RT-DETR on this frame…")
-        self._worker = DetectWorker(self.manager, ann.frame_index, self.conf_spin.value())
+        self._worker = DetectWorker(
+            self.manager, ann.frame_index, self.conf_spin.value(),
+            model_id=self.model_combo.currentText(),
+        )
+        self._worker.status.connect(self._set_status)
         self._worker.done.connect(self._on_detect_one)
         self._worker.error.connect(self._on_worker_error)
         self._worker.start()
@@ -398,7 +410,12 @@ class TodeMainWindow(QMainWindow):
         if not self.manager or self._busy:
             return
         self._set_busy(True, "Running RT-DETR on all frames…")
-        self._worker = DetectWorker(self.manager, None, self.conf_spin.value())
+        self._worker = DetectWorker(
+            self.manager, None, self.conf_spin.value(),
+            model_id=self.model_combo.currentText(),
+            track=self.track_check.isChecked(),
+        )
+        self._worker.status.connect(self._set_status)
         self._worker.progress.connect(self._on_progress)
         self._worker.done.connect(self._on_detect_all)
         self._worker.error.connect(self._on_worker_error)
@@ -420,12 +437,10 @@ class TodeMainWindow(QMainWindow):
             self.manager.detector.confidence = self.conf_spin.value()
 
     def _on_model_change(self, model: str):
-        if self.manager and not self._busy:
-            self._set_status(f"Model set to {model} (loads on next detect).")
-            try:
-                self.manager.detector.reload(model)
-            except Exception as exc:      # noqa: BLE001
-                QMessageBox.warning(self, "Model", f"Could not load '{model}':\n{exc}")
+        # Non-blocking: the DetectWorker loads (and downloads if missing) the
+        # selected model on the next Detect click, off the UI thread — so
+        # switching models never freezes the window during a download.
+        self._set_status(f"Model '{model}' selected — loads on next detect.")
 
     # ── save / export ─────────────────────────────────────────────────────────
     def _save(self):
@@ -464,8 +479,9 @@ class TodeMainWindow(QMainWindow):
 
     # ── helpers ───────────────────────────────────────────────────────────────
     def _on_progress(self, done, total):
-        self.progress.setMaximum(total)
+        self.progress.setRange(0, total)
         self.progress.setValue(done)
+        self._set_status(f"Detecting… {done}/{total} frames")
 
     def _set_busy(self, busy: bool, msg: str = ""):
         self._busy = busy

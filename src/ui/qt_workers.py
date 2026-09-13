@@ -69,24 +69,50 @@ class LoadWorker(QThread):
 
 
 class DetectWorker(QThread):
-    """Runs RT-DETR on a single frame or on every frame."""
+    """Runs RT-DETR on a single frame or on every frame.
+
+    Loads the selected model first (downloading it from the HuggingFace Hub if
+    it isn't cached yet) — on this background thread, so the UI never freezes
+    while a model is fetched. Optional ByteTrack tracking for full-video runs.
+    """
 
     progress = pyqtSignal(int, int)
     done     = pyqtSignal(object)       # frame index (single) or count (all)
+    status   = pyqtSignal(str)
     error    = pyqtSignal(str)
 
-    def __init__(self, manager: AnnotationManager, index: int | None, conf: float):
+    def __init__(
+        self,
+        manager: AnnotationManager,
+        index: int | None,
+        conf: float,
+        model_id: str | None = None,
+        track: bool = False,
+    ):
         super().__init__()
         self.manager = manager
         self.index = index              # None → all frames
         self.conf = conf
+        self.model_id = model_id
+        self.track = track
 
     def run(self):
         try:
-            self.manager.detector.confidence = self.conf
+            detector = self.manager.detector
+            # Ensure the selected model is the one loaded; reload (which
+            # downloads if missing) happens here on the worker thread.
+            if self.model_id and (
+                getattr(detector, "model_id", None) != self.model_id
+                or not detector.is_loaded()
+            ):
+                self.status.emit(f"Loading model {self.model_id}…")
+                detector.reload(self.model_id)
+            detector.confidence = self.conf
+
             if self.index is None:
                 self.manager.auto_annotate_all(
-                    progress_callback=lambda d, t: self.progress.emit(d, t)
+                    progress_callback=lambda d, t: self.progress.emit(d, t),
+                    track=self.track,
                 )
                 self.done.emit(self.manager.annotated_count)
             else:

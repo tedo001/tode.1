@@ -14,7 +14,8 @@ class BoundingBox:
     y_center:   float
     width:      float
     height:     float
-    confidence: float = 1.0          # 1.0 for manual, model score for YOLO
+    confidence: float = 1.0          # 1.0 for manual, model score for detector
+    track_id:   int | None = None    # ByteTrack id when tracking is enabled
 
     # ── pixel helpers ─────────────────────────────────────────────────────────
     def to_pixel_coords(self, img_w: int, img_h: int):

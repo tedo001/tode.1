@@ -196,10 +196,28 @@ class AnnotationManager:
                 log.debug(f"Could not cache frame {frame_index}: {exc}")
         return frame
 
-    def auto_annotate_all(self, progress_callback=None):
+    def auto_annotate_all(self, progress_callback=None, track: bool = False):
+        """Detect on every frame (batched).
+
+        When ``track`` is True, detections are additionally run through a
+        Kalman-filter ByteTrack tracker (Roboflow supervision) in frame order,
+        assigning temporally-consistent ``track_id``s and smoothing/bridging
+        detections for more accurate video annotation. Tracking is opt-in and
+        leaves the default per-frame behaviour unchanged.
+        """
         indices = self.all_frame_indices()
         total = len(indices)
-        log.info(f"Auto-annotating all {total} frames (batched)…")
+        log.info(f"Auto-annotating all {total} frames (batched, track={track})…")
+
+        tracker = None
+        if track:
+            try:
+                from core.tracker import FrameTracker
+                fps = float(getattr(self.loader, "fps", 30.0) or 30.0)
+                tracker = FrameTracker(frame_rate=fps)
+            except Exception as exc:      # noqa: BLE001 - tracking is best-effort
+                log.warning(f"ByteTrack unavailable, continuing without tracking: {exc}")
+                tracker = None
 
         # Tune this for memory / speed tradeoff. Smaller batches use less RAM
         # but incur more Python overhead. 8 is a reasonable default.
@@ -219,10 +237,10 @@ class AnnotationManager:
                     frame = self._read_frame_reliable(ann, idx)
                     frames.append(frame)
 
-            # Run batched YOLO; detector implementations may optimise this
+            # Run batched detection; backends may optimise this
             boxes_list = self.detector.annotate_frames(frames)
 
-            # Apply detections back into annotations
+            # Apply detections back into annotations (in frame order for tracking)
             for rel_i, idx in enumerate(batch_idx):
                 ann = self._annotations.get(idx)
                 if ann is None:
@@ -230,6 +248,13 @@ class AnnotationManager:
                     self._annotations[idx] = ann
                 ann.clear_boxes()
                 boxes = boxes_list[rel_i] if rel_i < len(boxes_list) else []
+
+                if tracker is not None:
+                    frame = frames[rel_i]
+                    if frame is not None:
+                        h, w = frame.shape[:2]
+                        boxes = tracker.update(boxes, w, h)
+
                 for box in boxes:
                     ann.add_box(box)
                 # Refresh annotated flag
