@@ -21,11 +21,13 @@ cv2.setNumThreads(0)
 from PySide6.QtWidgets import QApplication
 
 from ui.qt_main_window import TodeMainWindow
+from ui.theme import apply_theme
 
 
 def main():
     app = QApplication(sys.argv)
     app.setApplicationName("tode")
+    apply_theme(app)
     window = TodeMainWindow()
     window.show()
     sys.exit(app.exec())

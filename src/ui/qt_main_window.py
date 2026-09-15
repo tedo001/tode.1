@@ -7,7 +7,7 @@ PySide6 main window for tode. A thin controller over the headless core:
         │
         ├── LoadWorker   → AnnotationManager (video / image / folder)
         ├── DetectWorker → AutoAnnotator (RT-DETR) → boxes
-        └── DatasetExporter (YOLO / COCO)
+        └── dialogs: settings · classes · export · health · logs
 
 Every UI action maps onto an AnnotationManager call; the manager owns all state.
 """
@@ -36,13 +36,13 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from core.audit_log import audit_log_path, get_audit_log
-from core.exporter import DatasetExporter
+from core.audit_log import get_audit_log
+from core.settings import Settings
 from core.time_tracker import AnnotationTimer
 from models.annotation_model import BoundingBox, ImageClassification, PolygonAnnotation
 from ui.qt_canvas import DRAW, POLYGON, VIEW, AnnotationCanvas
 from ui.qt_workers import DetectWorker, LoadWorker
-from utils.config import RTDETR_DEFAULT_MODEL, RTDETR_MODELS
+from utils.config import APP_VERSION, OUTPUT_DIR, RTDETR_MODELS
 from utils.logger import get_logger
 
 log = get_logger("ui.qt_main_window")
@@ -54,9 +54,10 @@ _IMAGE_EXTS = "*.jpg *.jpeg *.png *.bmp *.tiff *.tif *.webp"
 class TodeMainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("tode — RT-DETR annotation")
+        self.setWindowTitle(f"tode {APP_VERSION} — RT-DETR annotation")
         self.resize(1280, 820)
 
+        self.settings = Settings()
         self.manager = None
         self.current_index = 0
         self._indices: list[int] = []
@@ -65,7 +66,8 @@ class TodeMainWindow(QMainWindow):
         self._worker = None
         self.timer = AnnotationTimer()
         self.audit = get_audit_log()
-        self.audit.record("app_start", model=RTDETR_DEFAULT_MODEL)
+        self.audit.record("app_start", version=APP_VERSION,
+                          model=self.settings.get("checkpoint"))
 
         self._build_ui()
         self._build_shortcuts()
@@ -141,7 +143,10 @@ class TodeMainWindow(QMainWindow):
         v.addWidget(QLabel("<b>RT-DETR model</b>"))
         self.model_combo = QComboBox()
         self.model_combo.addItems(RTDETR_MODELS)
-        self.model_combo.setCurrentText(RTDETR_DEFAULT_MODEL)
+        _saved_model = self.settings.get("checkpoint")
+        if _saved_model not in RTDETR_MODELS:
+            self.model_combo.addItem(_saved_model)
+        self.model_combo.setCurrentText(_saved_model)
         self.model_combo.currentTextChanged.connect(self._on_model_change)
         v.addWidget(self.model_combo)
 
@@ -150,12 +155,13 @@ class TodeMainWindow(QMainWindow):
         self.conf_spin = QDoubleSpinBox()
         self.conf_spin.setRange(0.05, 0.95)
         self.conf_spin.setSingleStep(0.05)
-        self.conf_spin.setValue(0.45)
+        self.conf_spin.setValue(float(self.settings.get("confidence")))
         self.conf_spin.valueChanged.connect(self._on_conf_change)
         conf_row.addWidget(self.conf_spin)
         v.addLayout(conf_row)
 
         self.detect_btn = QPushButton("⚡ Detect Frame")
+        self.detect_btn.setObjectName("primary")
         self.detect_all_btn = QPushButton("🔁 Detect All Frames")
         self.detect_btn.clicked.connect(self._run_detect)
         self.detect_all_btn.clicked.connect(self._run_detect_all)
@@ -163,6 +169,7 @@ class TodeMainWindow(QMainWindow):
         v.addWidget(self.detect_all_btn)
 
         self.track_check = QCheckBox("Track across frames (ByteTrack + Kalman)")
+        self.track_check.setChecked(bool(self.settings.get("track_by_default")))
         self.track_check.setToolTip(
             "Detect All only: link detections across frames with ByteTrack for "
             "temporally-consistent, smoother annotations."
@@ -180,6 +187,7 @@ class TodeMainWindow(QMainWindow):
 
         del_row = QHBoxLayout()
         self.del_btn = QPushButton("🗑 Delete")
+        self.del_btn.setObjectName("danger")
         self.clear_btn = QPushButton("Clear frame")
         self.del_btn.clicked.connect(self._delete_selected_box)
         self.clear_btn.clicked.connect(self._clear_frame)
@@ -213,6 +221,9 @@ class TodeMainWindow(QMainWindow):
         act("💾 Save", self._save, "Ctrl+S")
         act("📤 Export", self._export, "Ctrl+E")
         tb.addSeparator()
+        act("🏷 Classes", self._open_classes)
+        act("📊 Health", self._open_health)
+        act("⚙ Settings", self._open_settings, "Ctrl+,")
         act("📋 Logs", self._show_logs)
 
     def _build_shortcuts(self):
@@ -517,41 +528,99 @@ class TodeMainWindow(QMainWindow):
     def _export(self):
         if not self.manager:
             return
-        fmt, ok = QInputDialog.getItem(
-            self, "Export dataset", "Format:", ["yolo", "coco"], 0, False
-        )
-        if not ok:
+        from ui.dialogs.export_dialog import ExportDialog, default_export_dir
+        boxes = sum(len(a.boxes) for a in self.manager._annotations.values())
+        n_below = sum(1 for a in self.manager._annotations.values()
+                      for b in a.boxes if b.confidence < 0.5)
+        n_empty = sum(1 for a in self.manager._annotations.values() if not a.boxes)
+        default_dir = default_export_dir(os.path.join(OUTPUT_DIR, "exports"))
+        dlg = ExportDialog(self, default_dir, self.manager.total_count, boxes, n_below, n_empty)
+        if not dlg.exec() or not dlg.options:
             return
-        out = QFileDialog.getExistingDirectory(self, "Export destination")
-        if not out:
-            return
+        opts = dlg.options
         try:
-            summary = DatasetExporter(
-                self.manager._annotations,
-                self.manager.detector.class_names or {v: k for k, v in self._class_ids.items()},
-                out,
-            ).export(fmt)
-            self.audit.record(
-                "dataset_exported", target=out, fmt=fmt, images=summary.get("images"),
-            )
+            self.manager.save_annotations()           # disk exporters read saved labels
+            count = self._run_export(opts)
+            self.audit.record("dataset_exported", target=opts["out_dir"],
+                              fmt=opts["format"], annotations=count, split=opts["split"])
             QMessageBox.information(
                 self, "Export complete",
-                f"Exported {summary.get('images', '?')} image(s) as {fmt.upper()} to:\n{out}",
+                f"Exported {count} annotation(s) as {opts['format'].upper()} to:\n{opts['out_dir']}",
             )
         except Exception as exc:          # noqa: BLE001
-            self.audit.record("export_failed", target=out, fmt=fmt, error=str(exc))
+            self.audit.record("export_failed", target=opts["out_dir"],
+                              fmt=opts["format"], error=str(exc))
             QMessageBox.critical(self, "Export failed", str(exc))
 
-    def _show_logs(self):
-        from utils.logger import get_log_file_path
-        msg = (
-            "System log (diagnostics):\n"
-            f"{get_log_file_path()}\n\n"
-            "Audit log (who did what — JSON Lines):\n"
-            f"{audit_log_path()}\n\n"
-            "A per-project audit.jsonl is also written next to the project's labels."
+    def _run_export(self, opts: dict) -> int:
+        from core.exporters.coco import COCOExporter
+        from core.exporters.csv_exporter import CSVExporter
+        from core.exporters.pascal_voc import PascalVOCExporter
+        from core.exporters.yolo import YOLOExporter
+        exporters = {"yolo": YOLOExporter, "coco": COCOExporter,
+                     "pascal_voc": PascalVOCExporter, "csv": CSVExporter}
+        cls = exporters.get(opts["format"], YOLOExporter)
+        labels_dir = self.manager.l_store.base_dir
+        images_dir = getattr(self.manager.extractor, "output_dir", labels_dir)
+        class_names = [n for n, _ in sorted(self._class_ids.items(), key=lambda kv: kv[1])]
+        os.makedirs(opts["out_dir"], exist_ok=True)
+        count = cls(
+            labels_dir=labels_dir, images_dir=images_dir,
+            class_names=class_names, output_dir=opts["out_dir"],
+        ).export()
+        self._write_split(opts)
+        return count
+
+    def _write_split(self, opts: dict) -> None:
+        import random
+        train, val, _test = opts["split"]
+        stems = sorted(
+            f"frame_{a.frame_index:06d}"
+            for a in self.manager._annotations.values()
+            if a.boxes or opts.get("include_empty")
         )
-        QMessageBox.information(self, "Logs", msg)
+        random.Random(42).shuffle(stems)
+        n = len(stems)
+        n_tr, n_va = n * train // 100, n * val // 100
+        parts = {
+            "train": stems[:n_tr],
+            "val": stems[n_tr:n_tr + n_va],
+            "test": stems[n_tr + n_va:],
+        }
+        for name, items in parts.items():
+            with open(os.path.join(opts["out_dir"], f"{name}.txt"), "w", encoding="utf-8") as fh:
+                fh.write("\n".join(items))
+
+    def _show_logs(self):
+        from ui.dialogs.log_viewer import LogViewerDialog
+        LogViewerDialog(self).exec()
+
+    def _open_settings(self):
+        from ui.dialogs.settings_dialog import SettingsDialog
+        dlg = SettingsDialog(self.settings, self)
+        result = dlg.exec()
+        if result == 2:          # Reset → reopen with defaults
+            self.settings.save()
+            return self._open_settings()
+        if result:               # Applied
+            self.conf_spin.setValue(float(self.settings.get("confidence")))
+            self.model_combo.setCurrentText(self.settings.get("checkpoint"))
+            if self.manager:
+                self.manager.detector.confidence = float(self.settings.get("confidence"))
+                self.manager.detector.iou = float(self.settings.get("nms_iou"))
+            self.audit.record("settings_changed", redetect=dlg.needs_redetect())
+            extra = " Re-run Detect to apply model/size changes." if dlg.needs_redetect() else ""
+            self._set_status("Settings applied." + extra)
+        return None
+
+    def _open_classes(self):
+        from ui.dialogs.class_manager import ClassManagerDialog
+        ClassManagerDialog(self, self.manager, self._class_ids).exec()
+        self._refresh_box_list()
+
+    def _open_health(self):
+        from ui.dialogs.dataset_health import DatasetHealthDialog
+        DatasetHealthDialog(self, self.manager, float(self.conf_spin.value())).exec()
 
     # ── helpers ───────────────────────────────────────────────────────────────
     def _on_progress(self, done, total):

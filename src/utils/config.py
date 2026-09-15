@@ -1,12 +1,16 @@
 """Global configuration constants."""
 import os
 
+# ── Version ─────────────────────────────────────────────────────────────────
+APP_VERSION = "1.0.1"
+
 # ── Directories ───────────────────────────────────────────────────────────────
 BASE_DIR    = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 OUTPUT_DIR  = os.path.join(BASE_DIR, "output")
 FRAMES_DIR  = os.path.join(OUTPUT_DIR, "frames")
 LABELS_DIR  = os.path.join(OUTPUT_DIR, "labels")
 WEIGHTS_DIR = os.path.join(BASE_DIR, "weights")
+CONFIG_DIR  = os.path.join(OUTPUT_DIR, "config")   # persisted app settings / presets
 
 # ── Frame extraction ──────────────────────────────────────────────────────────
 DEFAULT_FPS_STEP = 1        # extract every N-th frame
@@ -30,6 +34,9 @@ RTDETR_DEFAULT_MODEL = os.environ.get("TODE_RTDETR_MODEL", "PekingU/rtdetr_r50vd
 # ── Inference defaults ────────────────────────────────────────────────────────
 DETECT_CONFIDENCE = 0.45
 DETECT_IOU        = 0.45
+DETECT_INPUT_SIZE = 640
+DETECT_BATCH_SIZE = 8
+DETECT_MAX_BOXES  = 100
 
 # ── UI colours ────────────────────────────────────────────────────────────────
 BG_DARK    = "#1e1e2e"
@@ -42,5 +49,5 @@ BOX_COLOR  = "#00ff88"          # manual bbox overlay colour
 # "yolo" → .txt  (class cx cy w h — normalised)
 LABEL_FORMAT = "yolo"
 
-for _d in (OUTPUT_DIR, FRAMES_DIR, LABELS_DIR, WEIGHTS_DIR):
+for _d in (OUTPUT_DIR, FRAMES_DIR, LABELS_DIR, WEIGHTS_DIR, CONFIG_DIR):
     os.makedirs(_d, exist_ok=True)
